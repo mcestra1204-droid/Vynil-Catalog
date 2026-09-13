@@ -28,28 +28,25 @@ export default function Scanner({ onDetected, onClose }) {
 
     async function start() {
       try {
-        const devices = await BrowserMultiFormatReader.listVideoInputDevices()
-        if (devices.length === 0) {
-          setError('Nessuna fotocamera trovata su questo dispositivo.')
-          setInitializing(false)
-          return
+        let deviceId = undefined
+        try {
+          const devices = await BrowserMultiFormatReader.listVideoInputDevices()
+          if (devices && devices.length > 0) {
+            const backCamera = devices.find((d) => /back|rear|environment/i.test(d.label))
+            deviceId = (backCamera || devices[devices.length - 1]).deviceId
+          }
+        } catch (e) {
+          console.warn('Impossibile elencare i dispositivi, proverò la fotocamera predefinita:', e)
         }
-
-        // Preferisci la fotocamera posteriore (back/environment) se disponibile
-        const backCamera = devices.find((d) => /back|rear|environment/i.test(d.label))
-        const deviceId = (backCamera || devices[devices.length - 1]).deviceId
 
         setInitializing(false)
 
         codeReader.decodeFromVideoDevice(deviceId, videoRef.current, (result, err) => {
           if (stopped) return
           if (result) {
-            // Vibrazione breve di feedback, se supportata
             if (navigator.vibrate) navigator.vibrate(80)
             onDetected(result.getText())
           }
-          // NotFoundException viene lanciata ad ogni frame senza codice:
-          // è normale rumore, va ignorata.
           if (err && !(err instanceof NotFoundException)) {
             console.warn('Errore decodifica scanner:', err)
           }
