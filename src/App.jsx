@@ -1,43 +1,63 @@
 import { useCallback, useEffect, useState } from 'react'
-import { ScanLine, Library, LogOut } from 'lucide-react'
+import { ScanLine, Library, LogOut, Users } from 'lucide-react'
 import Scanner from './components/Scanner'
 import SearchBar from './components/SearchBar'
 import SearchResults from './components/SearchResults'
 import LibraryGallery from './components/LibraryGallery'
 import Auth from './components/Auth'
+import ProfileSetup from './components/ProfileSetup'
+import FriendSearch from './components/FriendSearch'
+import FriendList from './components/FriendList'
+import FriendLibrary from './components/FriendLibrary'
 import { useLibrary } from './hooks/useLibrary'
 import { fetchByBarcode, searchByQuery } from './services/discogsApi'
 import { supabase } from './services/supabase'
 
-const TABS = { ADD: 'add', LIBRARY: 'library' }
+const TABS = { ADD: 'add', LIBRARY: 'library', SOCIAL: 'social' }
 
 export default function App() {
   const [user, setUser] = useState(null)
+  const [profile, setProfile] = useState(null)
   const [tab, setTab] = useState(TABS.LIBRARY)
   const [scannerOpen, setScannerOpen] = useState(false)
   const [results, setResults] = useState([])
   const [searching, setSearching] = useState(false)
   const [statusMsg, setStatusMsg] = useState(null)
 
+  // Social state
+  const [socialView, setSocialView] = useState('main') // 'main' or 'friend-library'
+  const [selectedFriend, setSelectedFriend] = useState(null)
+
   const { albums, loading, saveAlbum, removeAlbum } = useLibrary()
 
   useEffect(() => {
-    // Check initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null)
+      if (session?.user) fetchProfile(session.user.id)
     })
 
-    // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null)
+      if (session?.user) fetchProfile(session.user.id)
+      else setProfile(null)
     })
 
     return () => subscription.unsubscribe()
   }, [])
 
+  async function fetchProfile(userId) {
+    const { data } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', userId)
+      .single()
+    setProfile(data)
+  }
+
   const handleLogout = async () => {
     await supabase.auth.signOut()
     setUser(null)
+    setProfile(null)
   }
 
   const showStatus = useCallback((msg, type = 'info') => {
@@ -45,7 +65,6 @@ export default function App() {
     setTimeout(() => setStatusMsg(null), 3000)
   }, [])
 
-  // --- Flusso "scansione barcode" -----------------------------------
   const handleBarcodeDetected = useCallback(
     async (barcode) => {
       setScannerOpen(false)
@@ -68,7 +87,6 @@ export default function App() {
     [showStatus, handleSelectResult]
   )
 
-  // --- Flusso "ricerca manuale" ---------------------------------------
   const handleManualSearch = useCallback(async ({ artist, title }) => {
     setSearching(true)
     setResults([])
@@ -83,7 +101,6 @@ export default function App() {
     }
   }, [showStatus])
 
-  // --- Selezione di un risultato → salvataggio in libreria ------------
   async function handleSelectResult(result) {
     const { saved, reason } = await saveAlbum(result)
     if (saved) {
@@ -95,14 +112,18 @@ export default function App() {
     }
   }
 
-  if (!user) {
-    return <Auth />
-  }
+  if (!user) return <Auth />
+  if (!profile) return <ProfileSetup onComplete={() => fetchProfile(user.id)} />
 
   return (
     <div className="min-h-screen bg-slate-950 pb-20">
       <header className="sticky top-0 z-10 border-b border-slate-800 bg-slate-950/95 px-4 py-3 backdrop-blur flex items-center justify-between">
-        <h1 className="text-lg font-bold text-slate-100">🎵 Vinyl & CD Catalog</h1>
+        <div className="flex items-center gap-2">
+          <h1 className="text-lg font-bold text-slate-100">🎵 Vinyl Catalog</h1>
+          <span className="text-xs bg-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded-full font-medium">
+            @{profile.username}
+          </span>
+        </div>
         <button
           onClick={handleLogout}
           className="p-2 text-slate-400 hover:text-red-400 transition-colors"
@@ -137,6 +158,28 @@ export default function App() {
         {tab === TABS.LIBRARY && (
           <LibraryGallery albums={albums} loading={loading} onDelete={removeAlbum} />
         )}
+
+        {tab === TABS.SOCIAL && (
+          <section className="space-y-8">
+            {socialView === 'main' ? (
+              <>
+                <FriendSearch onFriendAdded={() => {}} />
+                <FriendList
+                  onRefresh={(friend) => {
+                    setSelectedFriend(friend)
+                    setSocialView('friend-library')
+                  }}
+                />
+              </>
+            ) : (
+              <FriendLibrary
+                userId={selectedFriend?.id}
+                username={selectedFriend?.username}
+                onBack={() => setSocialView('main')}
+              />
+            )}
+          </section>
+        )}
       </main>
 
       {scannerOpen && (
@@ -157,7 +200,6 @@ export default function App() {
         </div>
       )}
 
-      {/* Bottom nav mobile-first */}
       <nav className="fixed bottom-0 left-0 right-0 z-10 flex border-t border-slate-800 bg-slate-950">
         <button
           onClick={() => setTab(TABS.LIBRARY)}
@@ -176,6 +218,15 @@ export default function App() {
         >
           <ScanLine size={20} />
           Aggiungi
+        </button>
+        <button
+          onClick={() => setTab(TABS.SOCIAL)}
+          className={`flex flex-1 flex-col items-center gap-0.5 py-2.5 text-xs ${
+            tab === TABS.SOCIAL ? 'text-emerald-400' : 'text-slate-500'
+          }`}
+        >
+          <Users size={20} />
+          Social
         </button>
       </nav>
     </div>
