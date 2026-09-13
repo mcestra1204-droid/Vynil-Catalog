@@ -12,6 +12,11 @@ L'app è passata da una struttura "Local-First" (IndexedDB) a una struttura "Clo
 - [x] Deploy su Vercel con risoluzione errori di build e 403 Forbidden.
 - [x] Rimozo l'obbligo di inserimento manuale del token Discogs (ora gestito lato codice/env).
 - [x] Migrazione Dati: Spostata la logica di `src/services/db.js` da IndexedDB $\rightarrow$ Supabase Cloud.
+- [x] Implementazione Sistema Social:
+    - Ricerca utenti tramite username.
+    - Gestione richieste di amicizia (Invio, Accettazione, Rifiuto).
+    - Visualizzazione della collezione degli amici.
+    - Integrazione Tab Social in App.jsx.
 
 ## 🛠️ Lavori in Corso / Da Fare
 - [ ] **Migrazione Dati**: Spostare la logica di `src/services/db.js` e `src/hooks/useLibrary.js` da IndexedDB $\rightarrow$ Supabase.
