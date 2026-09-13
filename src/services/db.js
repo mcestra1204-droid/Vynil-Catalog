@@ -1,102 +1,132 @@
 /**
  * db.js — Layer di persistenza dati.
  *
- * Oggi: IndexedDB (via Dexie) → funziona subito, offline, nessun account.
- * Domani: basta riscrivere le funzioni di questo file (stessa "interfaccia
- * pubblica") per puntare a Firebase / Supabase / un tuo backend REST.
- *
- * Tutto il resto dell'app (hook useLibrary, componenti) parla SOLO con
- * le funzioni esportate qui sotto: addAlbum, getAllAlbums, deleteAlbum,
- * albumExists. Non tocca mai Dexie direttamente. Questo disaccoppiamento
- * è quello che rende semplice il cambio di backend in futuro.
+ * Ora migrato a Supabase per supportare il cloud e le funzioni social.
+ * Le funzioni mantengono la stessa "interfaccia pubblica" per non rompere
+ * il resto dell'app (hook useLibrary, componenti).
  */
-
-import Dexie from 'dexie'
-
-export const db = new Dexie('VinylCatalogDB')
-
-// v1 dello schema. `id` autoincrementale, indici su barcode/discogsId
-// per controlli veloci di duplicati e ricerche.
-db.version(1).stores({
-  // ++id = chiave primaria autoincrementale
-  albums: '++id, discogsId, barcode, artist, title, format, addedAt'
-})
-
-/**
- * Struttura di un album salvato:
- * {
- *   id: number (auto),
- *   discogsId: number | null,
- *   barcode: string | null,
- *   title: string,
- *   artist: string,
- *   year: string,
- *   format: string,        // es. "Vinyl, LP, Album" oppure "CD, Album"
- *   genre: string[],
- *   coverUrl: string,
- *   addedAt: number (timestamp)
- * }
- */
+import { supabase } from './supabase'
 
 export async function getAllAlbums() {
-  // Più recenti prima
-  return db.albums.orderBy('addedAt').reverse().toArray()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return []
+
+  const { data, error } = await supabase
+    .from('collection')
+    .select('*')
+    .eq('user_id', user.id)
+    .order('added_at', { ascending: false })
+
+  if (error) {
+    console.error('Errore recupero collezione:', error)
+    throw error
+  }
+
+  // Normalizziamo i nomi delle colonne per mantenere compatibilità con l'UI
+  // (es. discogs_id -> discogsId)
+  return data.map(item => ({
+    id: item.id,
+    discogsId: item.discogs_id,
+    barcode: item.barcode,
+    title: item.title,
+    artist: item.artist,
+    year: item.year,
+    format: item.format,
+    genre: item.genre,
+    coverUrl: item.cover_url,
+    addedAt: item.added_at
+  }))
 }
 
 export async function addAlbum(album) {
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) throw new Error('Utente non autenticato')
+
   const record = {
-    ...album,
-    addedAt: Date.now()
+    user_id: user.id,
+    discogs_id: album.discogsId,
+    barcode: album.barcode,
+    title: album.title,
+    artist: album.artist,
+    year: album.year,
+    format: album.format,
+    genre: album.genre,
+    cover_url: album.coverUrl,
+    added_at: new Date().toISOString()
   }
-  const id = await db.albums.add(record)
-  return { ...record, id }
+
+  const { data, error } = await supabase
+    .from('collection')
+    .insert(record)
+    .select()
+    .single()
+
+  if (error) {
+    console.error('Errore salvataggio album:', error)
+    throw error
+  }
+
+  // Ritorna l'oggetto in formato compatibile con l'UI
+  return {
+    id: data.id,
+    discogsId: data.discogs_id,
+    barcode: data.barcode,
+    title: data.title,
+    artist: data.artist,
+    year: data.year,
+    format: data.format,
+    genre: data.genre,
+    coverUrl: data.cover_url,
+    addedAt: data.added_at
+  }
 }
 
 export async function deleteAlbum(id) {
-  return db.albums.delete(id)
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) throw new Error('Utente non autenticato')
+
+  const { error } = await supabase
+    .from('collection')
+    .delete()
+    .eq('id', id)
+    .eq('user_id', user.id) // Sicurezza extra
+
+  if (error) {
+    console.error('Errore eliminazione album:', error)
+    throw error
+  }
+  return true
 }
 
 /**
  * Evita doppioni: controlla se un disco con lo stesso discogsId
- * (o, in mancanza, stesso barcode) è già in libreria.
+ * (o, in mancanza, stesso barcode) è già in libreria dell'utente.
  */
 export async function albumExists({ discogsId, barcode }) {
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return null
+
   if (discogsId) {
-    const byId = await db.albums.where('discogsId').equals(discogsId).first()
-    if (byId) return byId
+    const { data } = await supabase
+      .from('collection')
+      .select('*')
+      .eq('user_id', user.id)
+      .eq('discogs_id', discogsId)
+      .maybeSingle()
+
+    if (data) return data
   }
+
   if (barcode) {
-    const byBarcode = await db.albums.where('barcode').equals(barcode).first()
-    if (byBarcode) return byBarcode
+    const { data } = await supabase
+      .from('collection')
+      .select('*')
+      .eq('user_id', user.id)
+      .eq('barcode', barcode)
+      .maybeSingle()
+
+    if (data) return data
   }
+
   return null
 }
-
-/* --------------------------------------------------------------------
- * ESEMPIO di come sarebbe l'adapter Supabase equivalente, da tenere
- * pronto per quando vorrai passare al cloud (NON attivo, solo riferimento):
- *
- * import { createClient } from '@supabase/supabase-js'
- * const supabase = createClient(URL, ANON_KEY)
- *
- * export async function getAllAlbums() {
- *   const { data, error } = await supabase
- *     .from('albums')
- *     .select('*')
- *     .order('addedAt', { ascending: false })
- *   if (error) throw error
- *   return data
- * }
- *
- * export async function addAlbum(album) {
- *   const { data, error } = await supabase
- *     .from('albums')
- *     .insert({ ...album, addedAt: Date.now() })
- *     .select()
- *     .single()
- *   if (error) throw error
- *   return data
- * }
- *
- * La firma delle funzioni resta identica: il resto dell'app non cambia.
- * ------------------------------------------------------------------ */
