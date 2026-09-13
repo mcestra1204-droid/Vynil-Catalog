@@ -11,6 +11,7 @@ L'app è passata da una struttura "Local-First" (IndexedDB) a una struttura "Clo
 - [x] Implementazione setup del nome utente (`ProfileSetup.jsx`).
 - [x] Deploy su Vercel con risoluzione errori di build e 403 Forbidden.
 - [x] Rimozo l'obbligo di inserimento manuale del token Discogs (ora gestito lato codice/env).
+- [x] Migrazione Dati: Spostata la logica di `src/services/db.js` da IndexedDB $\rightarrow$ Supabase Cloud.
 
 ## 🛠️ Lavori in Corso / Da Fare
 - [ ] **Migrazione Dati**: Spostare la logica di `src/services/db.js` e `src/hooks/useLibrary.js` da IndexedDB $\rightarrow$ Supabase.
