@@ -1,17 +1,18 @@
-import { useCallback, useState } from 'react'
-import { ScanLine, Library, Settings } from 'lucide-react'
+import { useCallback, useEffect, useState } from 'react'
+import { ScanLine, Library, LogOut } from 'lucide-react'
 import Scanner from './components/Scanner'
 import SearchBar from './components/SearchBar'
 import SearchResults from './components/SearchResults'
 import LibraryGallery from './components/LibraryGallery'
-import TokenSetup from './components/TokenSetup'
+import Auth from './components/Auth'
 import { useLibrary } from './hooks/useLibrary'
-import { fetchByBarcode, searchByQuery, hasDiscogsToken } from './services/discogsApi'
+import { fetchByBarcode, searchByQuery } from './services/discogsApi'
+import { supabase } from './services/supabase'
 
 const TABS = { ADD: 'add', LIBRARY: 'library' }
 
 export default function App() {
-  const [tokenReady, setTokenReady] = useState(hasDiscogsToken())
+  const [user, setUser] = useState(null)
   const [tab, setTab] = useState(TABS.LIBRARY)
   const [scannerOpen, setScannerOpen] = useState(false)
   const [results, setResults] = useState([])
@@ -19,6 +20,25 @@ export default function App() {
   const [statusMsg, setStatusMsg] = useState(null)
 
   const { albums, loading, saveAlbum, removeAlbum } = useLibrary()
+
+  useEffect(() => {
+    // Check initial session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user ?? null)
+    })
+
+    // Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null)
+    })
+
+    return () => subscription.unsubscribe()
+  }, [])
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut()
+    setUser(null)
+  }
 
   const showStatus = useCallback((msg, type = 'info') => {
     setStatusMsg({ msg, type })
@@ -45,8 +65,7 @@ export default function App() {
         setSearching(false)
       }
     },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    []
+    [showStatus, handleSelectResult]
   )
 
   // --- Flusso "ricerca manuale" ---------------------------------------
@@ -62,7 +81,7 @@ export default function App() {
     } finally {
       setSearching(false)
     }
-  }, [])
+  }, [showStatus])
 
   // --- Selezione di un risultato → salvataggio in libreria ------------
   async function handleSelectResult(result) {
@@ -76,14 +95,21 @@ export default function App() {
     }
   }
 
-  if (!tokenReady) {
-    return <TokenSetup onSaved={() => setTokenReady(true)} />
+  if (!user) {
+    return <Auth />
   }
 
   return (
     <div className="min-h-screen bg-slate-950 pb-20">
-      <header className="sticky top-0 z-10 border-b border-slate-800 bg-slate-950/95 px-4 py-3 backdrop-blur">
+      <header className="sticky top-0 z-10 border-b border-slate-800 bg-slate-950/95 px-4 py-3 backdrop-blur flex items-center justify-between">
         <h1 className="text-lg font-bold text-slate-100">🎵 Vinyl & CD Catalog</h1>
+        <button
+          onClick={handleLogout}
+          className="p-2 text-slate-400 hover:text-red-400 transition-colors"
+          title="Esci"
+        >
+          <LogOut size={20} />
+        </button>
       </header>
 
       <main className="mx-auto max-w-5xl px-4 py-4">
@@ -150,13 +176,6 @@ export default function App() {
         >
           <ScanLine size={20} />
           Aggiungi
-        </button>
-        <button
-          onClick={() => setTokenReady(false)}
-          className="flex flex-1 flex-col items-center gap-0.5 py-2.5 text-xs text-slate-500"
-        >
-          <Settings size={20} />
-          Token
         </button>
       </nav>
     </div>
