@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { supabase } from '../services/supabase'
-import { User, Mail, Lock, Save, Loader2 } from 'lucide-react'
+import { User, Mail, Lock, Save, Loader2, Download, Upload } from 'lucide-react'
+import { getAllAlbums, addAlbum } from '../services/db'
 
 export default function Settings({ profile, onProfileUpdate }) {
   const [username, setUsername] = useState(profile?.username || '')
@@ -63,6 +64,60 @@ export default function Settings({ profile, onProfileUpdate }) {
       setSuccess(true)
     } catch (err) {
       setError(err.message)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  async function handleExportLibrary() {
+    setLoading(true)
+    setError(null)
+    try {
+      const albums = await getAllAlbums()
+      const dataStr = JSON.stringify(albums, null, 2)
+      const blob = new Blob([dataStr], { type: 'application/json' })
+      const url = URL.createObjectURL(blob)
+
+      const link = document.createElement('a')
+      link.href = url
+      link.download = `vinyl-catalog-backup-${profile.username}.json`
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      URL.revokeObjectURL(url)
+
+      setSuccess(true)
+    } catch (err) {
+      setError('Errore durante l\'esportazione: ' + err.message)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  async function handleImportLibrary(event) {
+    const file = event.target.files?.[0]
+    if (!file) return
+
+    setLoading(true)
+    setError(null)
+    setSuccess(false)
+
+    try {
+      const text = await file.text()
+      const albums = JSON.parse(text)
+
+      if (!Array.isArray(albums)) throw new Error('Il file selezionato non è un backup valido.')
+
+      let importedCount = 0
+      for (const album of albums) {
+        // addAlbum gestisce già i duplicati internamente
+        const result = await addAlbum(album)
+        if (result) importedCount++
+      }
+
+      setSuccess(`Importazione completata! Aggiunti ${importedCount} dischi.`)
+    } catch (err) {
+      setError('Errore durante l\'importazione: ' + err.message)
     } finally {
       setLoading(false)
     }
@@ -158,13 +213,41 @@ export default function Settings({ profile, onProfileUpdate }) {
         </div>
       </section>
 
+      {/* Sezione Dati */}
+      <section className="space-y-4 rounded-2xl bg-zinc-900 p-6 border border-slate-800">
+        <div className="flex items-center gap-2 text-emerald-400 mb-4">
+          <Download size={20} />
+          <h3 className="font-semibold">Gestione Dati</h3>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <button
+            onClick={handleExportLibrary}
+            disabled={loading}
+            className="flex items-center justify-center gap-2 rounded-xl bg-zinc-800 p-4 text-slate-100 hover:bg-zinc-700 transition-colors border border-slate-700 disabled:opacity-50"
+          >
+            <Download size={20} />
+            Esporta Libreria
+          </button>
+          <label className="flex items-center justify-center gap-2 rounded-xl bg-zinc-800 p-4 text-slate-100 hover:bg-zinc-700 transition-colors border border-slate-700 cursor-pointer disabled:opacity-50">
+            <Upload size={20} />
+            Importa Libreria
+            <input
+              type="file"
+              accept=".json"
+              onChange={handleImportLibrary}
+              className="hidden"
+            />
+          </label>
+        </div>
+      </section>
+
       {(error || success) && (
         <div className={`rounded-lg p-4 text-center text-sm font-medium border ${
           success
             ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
             : 'bg-red-500/10 text-red-400 border-red-500/20'
         }`}>
-          {success ? 'Aggiornamento riuscito!' : error}
+          {success ? success : error}
         </div>
       )}
     </div>
