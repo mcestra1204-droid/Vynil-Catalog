@@ -1,0 +1,13 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html, body, #root {
+  height: 100%;
+}
+
+/* Nasconde la scrollbar dello scanner senza rimuoverla dal DOM,
+   utile durante l'anteprima video full-screen */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
