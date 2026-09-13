@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { ScanLine, Library, LogOut, Users } from 'lucide-react'
+import { ScanLine, Library, LogOut, Users, Settings as SettingsIcon } from 'lucide-react'
 import Scanner from './components/Scanner'
 import SearchBar from './components/SearchBar'
 import SearchResults from './components/SearchResults'
@@ -9,11 +9,12 @@ import ProfileSetup from './components/ProfileSetup'
 import FriendSearch from './components/FriendSearch'
 import FriendList from './components/FriendList'
 import FriendLibrary from './components/FriendLibrary'
+import Settings from './components/Settings'
 import { useLibrary } from './hooks/useLibrary'
 import { fetchByBarcode, searchByQuery } from './services/discogsApi'
 import { supabase } from './services/supabase'
 
-const TABS = { ADD: 'add', LIBRARY: 'library', SOCIAL: 'social' }
+const TABS = { ADD: 'add', LIBRARY: 'library', SOCIAL: 'social', SETTINGS: 'settings' }
 
 export default function App() {
   const [user, setUser] = useState(null)
@@ -120,9 +121,11 @@ export default function App() {
       <header className="sticky top-0 z-10 border-b border-slate-800 bg-slate-950/95 px-4 py-3 backdrop-blur flex items-center justify-between">
         <div className="flex items-center gap-2">
           <h1 className="text-lg font-bold text-slate-100">🎵 Vinyl Catalog</h1>
-          <span className="text-xs bg-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded-full font-medium">
-            @{profile.username}
-          </span>
+          {profile && (
+            <span className="text-xs bg-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded-full font-medium">
+              @{profile.username}
+            </span>
+          )}
         </div>
         <button
           onClick={handleLogout}
@@ -180,6 +183,10 @@ export default function App() {
             )}
           </section>
         )}
+
+        {tab === TABS.SETTINGS && (
+          <Settings profile={profile} onProfileUpdate={() => fetchProfile(user.id)} />
+        )}
       </main>
 
       {scannerOpen && (
@@ -227,6 +234,15 @@ export default function App() {
         >
           <Users size={20} />
           Social
+        </button>
+        <button
+          onClick={() => setTab(TABS.SETTINGS)}
+          className={`flex flex-1 flex-col items-center gap-0.5 py-2.5 text-xs ${
+            tab === TABS.SETTINGS ? 'text-emerald-400' : 'text-slate-500'
+          }`}
+        >
+          <SettingsIcon size={20} />
+          Opzioni
         </button>
       </nav>
     </div>
