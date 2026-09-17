@@ -20,6 +20,7 @@ L'app è passata da una struttura "Local-First" (IndexedDB) a una struttura "Clo
     - Visualizzazione della collezione degli amici.
     - Integrazione Tab Social in App.jsx.
 - [x] **Configurazione Finale**: Attivazione di `VITE_DISCOGS_TOKEN` nelle variabili d'ambiente di Vercel.
+- [x] **Fix Token Discogs**: Corretto il recupero del token (localStorage $\rightarrow$ env) e aggiunta l'interfaccia di configurazione manuale nelle Impostazioni per garantire il funzionamento su ogni dispositivo.
 
 ## 🛠️ Lavori in Corso / Da Fare
 *(Tutti i task principali di migrazione e social sono stati completati)*
