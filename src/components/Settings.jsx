@@ -1,7 +1,9 @@
 import { useState } from 'react'
 import { supabase } from '../services/supabase'
-import { User, Mail, Lock, Save, Loader2, Download, Upload } from 'lucide-react'
+import { User, Mail, Lock, Save, Loader2, Download, Upload, KeyRound } from 'lucide-react'
 import { getAllAlbums, addAlbum } from '../services/db'
+import TokenSetup from './TokenSetup'
+
 
 export default function Settings({ profile, onProfileUpdate }) {
   const [username, setUsername] = useState(profile?.username || '')
@@ -10,6 +12,8 @@ export default function Settings({ profile, onProfileUpdate }) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
   const [success, setSuccess] = useState(false)
+  const [showTokenSetup, setShowTokenSetup] = useState(false)
+
 
   async function handleUpdateProfile() {
     setLoading(true)
@@ -163,53 +167,67 @@ export default function Settings({ profile, onProfileUpdate }) {
           <h3 className="font-semibold">Sicurezza e Account</h3>
         </div>
         <div className="space-y-6">
-          {/* Cambio Email */}
-          <div className="space-y-2">
-            <label className="block text-sm font-medium text-zinc-400">Cambia Email</label>
-            <div className="flex gap-2">
-              <div className="relative flex-1">
-                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={18} />
-                <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="w-full rounded-lg bg-zinc-800 py-3 pl-10 pr-4 text-white ring-emerald-500 focus:ring-2 focus:outline-none border border-slate-700"
-                  placeholder="nuovaemail@esempio.com"
-                />
+          {showTokenSetup ? (
+            <TokenSetup onSaved={() => setShowTokenSetup(false)} />
+          ) : (
+            <>
+              {/* Cambio Email */}
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-zinc-400">Cambia Email</label>
+                <div className="flex gap-2">
+                  <div className="relative flex-1">
+                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={18} />
+                    <input
+                      type="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      className="w-full rounded-lg bg-zinc-800 py-3 pl-10 pr-4 text-white ring-emerald-500 focus:ring-2 focus:outline-none border border-slate-700"
+                      placeholder="nuovaemail@esempio.com"
+                    />
+                  </div>
+                  <button
+                    onClick={handleUpdateEmail}
+                    disabled={loading}
+                    className="rounded-lg bg-zinc-800 px-4 py-3 text-emerald-400 hover:bg-zinc-700 transition-colors disabled:opacity-50 border border-slate-700"
+                  >
+                    Aggiorna
+                  </button>
+                </div>
               </div>
-              <button
-                onClick={handleUpdateEmail}
-                disabled={loading}
-                className="rounded-lg bg-zinc-800 px-4 py-3 text-emerald-400 hover:bg-zinc-700 transition-colors disabled:opacity-50 border border-slate-700"
-              >
-                Aggiorna
-              </button>
-            </div>
-          </div>
 
-          {/* Cambio Password */}
-          <div className="space-y-2">
-            <label className="block text-sm font-medium text-zinc-400">Cambia Password</label>
-            <div className="flex gap-2">
-              <div className="relative flex-1">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={18} />
-                <input
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="w-full rounded-lg bg-zinc-800 py-3 pl-10 pr-4 text-white ring-emerald-500 focus:ring-2 focus:outline-none border border-slate-700"
-                  placeholder="Nuova password"
-                />
+              {/* Cambio Password */}
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-zinc-400">Cambia Password</label>
+                <div className="flex gap-2">
+                  <div className="relative flex-1">
+                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={18} />
+                    <input
+                      type="password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      className="w-full rounded-lg bg-zinc-800 py-3 pl-10 pr-4 text-white ring-emerald-500 focus:ring-2 focus:outline-none border border-slate-700"
+                      placeholder="Nuova password"
+                    />
+                  </div>
+                  <button
+                    onClick={handleUpdatePassword}
+                    disabled={loading}
+                    className="rounded-lg bg-zinc-800 px-4 py-3 text-emerald-400 hover:bg-zinc-700 transition-colors disabled:opacity-50 border border-slate-700"
+                  >
+                    Aggiorna
+                  </button>
+                </div>
               </div>
+
               <button
-                onClick={handleUpdatePassword}
-                disabled={loading}
-                className="rounded-lg bg-zinc-800 px-4 py-3 text-emerald-400 hover:bg-zinc-700 transition-colors disabled:opacity-50 border border-slate-700"
+                onClick={() => setShowTokenSetup(true)}
+                className="flex w-full items-center justify-center gap-2 rounded-lg bg-zinc-800 p-3 text-sm text-slate-300 hover:bg-zinc-700 transition-colors border border-slate-700"
               >
-                Aggiorna
+                <KeyRound size={16} />
+                Configura Token Discogs
               </button>
-            </div>
-          </div>
+            </>
+          )}
         </div>
       </section>
 

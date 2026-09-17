@@ -25,7 +25,7 @@ const DISCOGS_BASE_URL = 'https://api.discogs.com'
 const TOKEN_STORAGE_KEY = 'discogs_personal_access_token'
 
 export function getDiscogsToken() {
-  return localStorage.getItem(TOKEN_STORAGE_KEY) || ''
+  return localStorage.getItem(TOKEN_STORAGE_KEY) || import.meta.env.VITE_DISCOGS_TOKEN || null
 }
 
 export function setDiscogsToken(token) {
